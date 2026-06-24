@@ -1,0 +1,23 @@
+# Salad Fleet Manager — gitignore
+
+# Config (contains API keys)
+config.json
+
+# Database
+database.db
+*.db-shm
+*.db-wal
+
+# Logs
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Streamlit
+.streamlit/secrets.toml

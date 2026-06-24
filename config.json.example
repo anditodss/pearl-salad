@@ -1,0 +1,25 @@
+{
+  "accounts": [],
+  "monitoring": {
+    "check_interval_minutes": 5,
+    "efficiency_threshold": 0.85,
+    "consecutive_failures": 3,
+    "log_lines_per_instance": 100
+  },
+  "hashrate": {
+    "regex_pattern": "(\\d+\\.?\\d*)\\s*[Hh]/s",
+    "unit": "H/s"
+  },
+  "database": {
+    "path": "database.db"
+  },
+  "api": {
+    "base_url": "https://api.salad.com/api/public",
+    "timeout_seconds": 30,
+    "max_retries": 3
+  },
+  "ui": {
+    "page_title": "Salad Fleet Manager",
+    "refresh_interval_seconds": 30
+  }
+}

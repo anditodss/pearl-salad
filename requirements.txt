@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────
+# Salad Fleet Manager — Dependencies
+# Python 3.11+
+# ─────────────────────────────────────────────
+
+# Web UI
+streamlit==1.35.0
+
+# HTTP Client
+requests==2.32.3
+
+# Database
+sqlalchemy==2.0.30
+
+# Data Processing
+pandas==2.2.2
+
+# Validation & Settings
+pydantic==2.7.1
+
+# Background Scheduler
+apscheduler==3.10.4
+
+# Utilities
+python-dotenv==1.0.1
+
+# UI Enhancements (Legacy Streamlit)
+plotly==5.22.0
+streamlit-autorefresh==1.0.1
+
+# API Backend
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
