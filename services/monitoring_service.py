@@ -46,7 +46,7 @@ from models.schemas import SaladContainerGroupList
 from utils.benchmarks import get_benchmark
 from utils.client_cache import get_salad_client
 from utils.config import get_config
-from utils.helpers import instance_status, safe_divide
+from utils.helpers import instance_status, safe_divide, get_gpu_cost_per_hour
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +149,10 @@ def run_monitoring_cycle() -> Dict[str, int]:
                 efficiency = safe_divide(inst.latest_hashrate, benchmark)
             inst.efficiency = efficiency
 
-            # Determine if bad — only when we have benchmark data
-            is_bad_now = efficiency is not None and efficiency < threshold
+            # Determine if bad using the new cost-based logic
+            cost = get_gpu_cost_per_hour(inst.gpu_type)
+            status = instance_status(inst.latest_hashrate, cost)
+            is_bad_now = (status == "BAD")
             if is_bad_now:
                 inst.consecutive_bad_checks += 1
                 inst.is_bad = True

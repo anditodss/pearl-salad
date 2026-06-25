@@ -57,20 +57,23 @@ def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> f
     return numerator / denominator
 
 
-def instance_status(efficiency: Optional[float], threshold: float) -> str:
+def instance_status(hashrate: Optional[float], cost_per_hour: float) -> str:
     """
-    Return a status label based on efficiency vs threshold.
+    Return a status label based on hashrate vs cost per hour.
+    Target hashrate is cost_per_hour * 1000.
 
-    - GOOD    : efficiency >= threshold
-    - WARNING : efficiency >= threshold * 0.75 (within 75% of threshold)
-    - BAD     : efficiency < threshold * 0.75
-    - UNKNOWN : no data
+    - GOOD    : hashrate >= target
+    - WARNING : hashrate >= target * 0.85
+    - BAD     : hashrate < target * 0.85
+    - UNKNOWN : no data or cost is 0
     """
-    if efficiency is None:
+    if hashrate is None or cost_per_hour <= 0.0:
         return "UNKNOWN"
-    if efficiency >= threshold:
+    
+    target = cost_per_hour * 1000.0
+    if hashrate >= target:
         return "GOOD"
-    if efficiency >= threshold * 0.75:
+    if hashrate >= target * 0.85:
         return "WARNING"
     return "BAD"
 
@@ -81,15 +84,56 @@ def get_gpu_cost_per_hour(gpu_type: Optional[str]) -> float:
         return 0.0
     
     lower_gpu = gpu_type.lower()
-    if "4070 ti super" in lower_gpu:
-        return 0.09
-    elif "4070 ti" in lower_gpu:
-        return 0.08
-    elif "4070 super" in lower_gpu:
-        return 0.07
-    elif "4070" in lower_gpu:
-        return 0.07
-    elif "3080" in lower_gpu:
-        return 0.06
-        
+    
+    # RTX 50 Series
+    if "5090 laptop" in lower_gpu: return 0.10
+    if "5090" in lower_gpu: return 0.25
+    if "5080" in lower_gpu: return 0.18
+    if "5070 ti" in lower_gpu: return 0.10
+    if "5070" in lower_gpu: return 0.08
+    if "5060 ti" in lower_gpu: return 0.07
+    if "5060" in lower_gpu: return 0.065
+    
+    # RTX 40 Series
+    if "4090" in lower_gpu: return 0.16
+    if "4080" in lower_gpu: return 0.11
+    if "4070 ti super" in lower_gpu: return 0.09
+    if "4070 ti" in lower_gpu: return 0.08
+    if "4070 super" in lower_gpu: return 0.07
+    if "4070 laptop" in lower_gpu: return 0.05
+    if "4070" in lower_gpu: return 0.07
+    if "4060 ti" in lower_gpu: return 0.08
+    if "4060" in lower_gpu: return 0.05
+    
+    # RTX 30 Series
+    if "3090 ti" in lower_gpu: return 0.10
+    if "3090" in lower_gpu: return 0.09
+    if "3080 ti" in lower_gpu: return 0.08
+    if "3080" in lower_gpu: return 0.06
+    if "3070 ti" in lower_gpu: return 0.06
+    if "3070" in lower_gpu: return 0.04
+    if "3060 ti" in lower_gpu: return 0.03
+    if "3060" in lower_gpu: return 0.04
+    if "3050" in lower_gpu: return 0.03
+    
+    # RTX 20 Series
+    if "2080 ti" in lower_gpu: return 0.06
+    if "2080" in lower_gpu: return 0.05
+    if "2070" in lower_gpu: return 0.02
+    if "2060" in lower_gpu: return 0.02
+    
+    # GTX 16/10 Series
+    if "1660 super" in lower_gpu: return 0.02
+    if "1660" in lower_gpu: return 0.02
+    if "1650" in lower_gpu: return 0.015
+    if "1080 ti" in lower_gpu or "1080ti" in lower_gpu: return 0.02
+    if "1080" in lower_gpu: return 0.02
+    if "1070" in lower_gpu: return 0.02
+    if "1060" in lower_gpu: return 0.02
+    if "1050 ti" in lower_gpu: return 0.015
+    
+    # Workstation / Others
+    if "a5000" in lower_gpu: return 0.09
+    if "9070 xt" in lower_gpu: return 0.07
+    
     return 0.0

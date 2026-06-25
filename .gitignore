@@ -4,7 +4,7 @@
 config.json
 
 # Database
-database.db
+*.db
 *.db-shm
 *.db-wal
 
@@ -21,3 +21,6 @@ venv/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Inspiration
+salad_inspiration_autoamtion/

@@ -117,6 +117,7 @@ def get_all_instances() -> List[InstanceDTO]:
             if account is None:
                 continue
 
+            cost = get_gpu_cost_per_hour(inst.gpu_type)
             dtos.append(InstanceDTO(
                 db_id=inst.id,
                 instance_id=inst.instance_id,
@@ -132,10 +133,10 @@ def get_all_instances() -> List[InstanceDTO]:
                 efficiency=inst.efficiency,
                 consecutive_bad_checks=inst.consecutive_bad_checks,
                 is_bad=inst.is_bad,
-                status=instance_status(inst.efficiency, threshold),
+                status=instance_status(inst.latest_hashrate, cost),
                 last_checked_at=inst.last_checked_at,
                 api_create_time=inst.api_create_time,
-                cost_per_hour=get_gpu_cost_per_hour(inst.gpu_type),
+                cost_per_hour=cost,
             ))
 
     with _cache_lock:

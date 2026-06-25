@@ -8,11 +8,12 @@ import { useEffect, useState } from "react";
 const inter = Inter({ subsets: ["latin"] });
 
 const NAV_ITEMS = [
-  { href: "/",            label: "Overview",            icon: "◈" },
-  { href: "/instances",   label: "Instances",           icon: "⬡" },
-  { href: "/gpu-summary", label: "GPU Summary",         icon: "▦" },
-  { href: "/actions",     label: "Remediation Actions", icon: "⟳" },
-  { href: "/settings",    label: "Settings",            icon: "⚙" },
+  { href: "/",                 label: "Overview",            icon: "◈" },
+  { href: "/instances",        label: "Instances",           icon: "⬡" },
+  { href: "/auto-reallocate",  label: "Auto Reallocate",     icon: "⚠" },
+  { href: "/gpu-summary",      label: "GPU Summary",         icon: "▦" },
+  { href: "/actions",          label: "Remediation Actions", icon: "⟳" },
+  { href: "/settings",         label: "Settings",            icon: "⚙" },
 ];
 
 function useNextSync() {

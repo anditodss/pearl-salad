@@ -30,7 +30,7 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
 const TRANSIENT_STATES = ["allocating", "downloading", "extracting", "creating", "starting", "deploying", "reallocating"];
 const isTransient = (state) => TRANSIENT_STATES.includes((state || "").toLowerCase());
 
-export default function Instances() {
+export default function AutoReallocate() {
   const [instances, setInstances] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -40,6 +40,120 @@ export default function Instances() {
   const [gpuFilter, setGpuFilter] = useState("ALL");
   const [collapsedAccounts, setCollapsedAccounts] = useState({});
   const fastPollRef = useRef(null);
+  
+  // Auto Reallocate Mode State
+  const [isAutoMode, setIsAutoMode] = useState(false);
+  const [autoQueue, setAutoQueue] = useState([]);
+  const autoQueueRef = useRef(autoQueue);
+  useEffect(() => { autoQueueRef.current = autoQueue; }, [autoQueue]);
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const instancesRef = useRef(instances);
+  
+  useEffect(() => {
+    instancesRef.current = instances;
+  }, [instances]);
+
+  // Keep queue synced with bad instances when AutoMode is ON
+  useEffect(() => {
+    if (!isAutoMode) {
+      setAutoQueue([]);
+      return;
+    }
+    
+    setAutoQueue(prevQueue => {
+      const badInstances = instancesRef.current.filter(i => 
+        (i.status === "WARNING" || i.status === "BAD") && 
+        !isTransient(i.state)
+      );
+      
+      const queueIds = new Set(prevQueue.map(item => item.id));
+      const newItems = badInstances
+        .filter(i => !queueIds.has(i.id))
+        .map(i => ({ id: i.id }));
+
+      const combinedQueue = [...prevQueue, ...newItems];
+      
+      // Sort the combined queue: BAD instances first
+      combinedQueue.sort((a, b) => {
+        const instA = instancesRef.current.find(i => i.id === a.id);
+        const instB = instancesRef.current.find(i => i.id === b.id);
+        const statusA = instA ? instA.status : "WARNING";
+        const statusB = instB ? instB.status : "WARNING";
+        if (statusA === "BAD" && statusB !== "BAD") return -1;
+        if (statusA !== "BAD" && statusB === "BAD") return 1;
+        return 0;
+      });
+
+      return combinedQueue;
+    });
+  }, [instances, isAutoMode]);
+
+  // The processor loop
+  useEffect(() => {
+    if (!isAutoMode) {
+      setCountdown(0);
+      setIsAutoProcessing(false);
+      return;
+    }
+
+    let isCancelled = false;
+    let timeRemaining = 2; // initial quick start in 2s
+    setCountdown(timeRemaining);
+
+    const ticker = setInterval(async () => {
+      if (isCancelled) return;
+      
+      const currentQueue = autoQueueRef.current || [];
+      if (currentQueue.length === 0) {
+        timeRemaining = 10;
+        setCountdown(0);
+        return;
+      }
+
+      if (timeRemaining > 0) {
+        timeRemaining -= 1;
+        setCountdown(timeRemaining);
+        return;
+      }
+
+      // Time to process!
+      setIsAutoProcessing(true);
+      timeRemaining = 10; // reset for next item immediately
+      setCountdown(timeRemaining);
+      
+      const nextItem = currentQueue[0];
+      const inst = instancesRef.current.find(i => i.id === nextItem.id);
+      
+      if (inst && (inst.status === "WARNING" || inst.status === "BAD") && !isTransient(inst.state)) {
+          try {
+            setActionLoadingId(inst.id); // visual indicator on the row button
+            const res = await fetch(`http://localhost:8000/api/instances/${inst.id}/reallocate`, { method: "POST" });
+            if (!res.ok) {
+              addToast(`Auto Reallocate Error for ${String(inst.id).substring(0,8)}`, "error");
+            } else {
+              addToast(`Auto Reallocated: ${String(inst.id).substring(0,8)}...`);
+              startFastPoll();
+            }
+          } catch (err) {
+            console.error(err);
+          } finally {
+            if (!isCancelled) setActionLoadingId(null);
+          }
+      }
+
+      if (!isCancelled) {
+        setAutoQueue(prev => prev.slice(1));
+        setIsAutoProcessing(false);
+      }
+    }, 1000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(ticker);
+      setIsAutoProcessing(false);
+    };
+  }, [isAutoMode]);
 
 
   const toggleAccount = (accountName) => {
@@ -143,6 +257,9 @@ export default function Instances() {
   const gpuTypes = ["ALL", ...Array.from(new Set(instances.map((i) => i.gpu_type).filter(Boolean)))];
 
   const filtered = instances.filter((inst) => {
+    const s = (inst.status || "").toUpperCase();
+    if (s !== "WARNING" && s !== "BAD") return false;
+
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -152,6 +269,12 @@ export default function Instances() {
       (inst.machine_id || "").toLowerCase().includes(q);
     const matchGpu = gpuFilter === "ALL" || inst.gpu_type === gpuFilter;
     return matchSearch && matchGpu;
+  }).sort((a, b) => {
+    const statusA = (a.status || "").toUpperCase();
+    const statusB = (b.status || "").toUpperCase();
+    if (statusA === "BAD" && statusB !== "BAD") return -1;
+    if (statusA !== "BAD" && statusB === "BAD") return 1;
+    return 0;
   });
 
   // Counts for summary row
@@ -177,9 +300,9 @@ export default function Instances() {
 
       <div className="header">
         <div>
-          <h1>Instances</h1>
+          <h1>Auto Reallocate</h1>
           <p style={{ color: "var(--text-secondary)", marginTop: "0.25rem", fontSize: "0.9rem" }}>
-            Monitor and manage individual GPU instances.
+            Monitor problematic instances and auto-reallocate them.
           </p>
         </div>
       </div>
@@ -216,6 +339,22 @@ export default function Instances() {
             <span>{filtered.length} total</span>
           </div>
 
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {isAutoMode && autoQueue.length > 0 && (
+              <span style={{ color: "var(--accent-orange)", fontSize: "0.8rem", fontWeight: 500 }} title={autoQueue.map(q => String(q.id).substring(0,8)).join(", ")}>
+                {isAutoProcessing ? "Processing..." : `${autoQueue.length} pending (Next in ${countdown}s)`}
+              </span>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.875rem", color: isAutoMode ? "var(--accent-green)" : "var(--text-secondary)", fontWeight: isAutoMode ? 600 : 400 }}>
+              <input 
+                type="checkbox" 
+                checked={isAutoMode} 
+                onChange={(e) => setIsAutoMode(e.target.checked)} 
+                style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--accent-green)" }} 
+              />
+              Auto Reallocate
+            </label>
+          </div>
         </div>
 
         <div className="table-container">
